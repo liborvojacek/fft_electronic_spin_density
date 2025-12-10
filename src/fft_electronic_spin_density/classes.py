@@ -4,6 +4,7 @@
 # include cubetools.py in folder utils/
 
 from fft_electronic_spin_density.utils.cubetools import read_cube, write_cube
+from fft_electronic_spin_density.utils.construct_d_wave_function_from_occupations import make_wavefunction_from_coeffs
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -36,8 +37,8 @@ a0 = physical_constants['Bohr radius'][0] * 1e10 # Bohr radius in units of Angst
 r_mt_Cu = 1.1 #Angstrom
 r_mt_O = 0.9 #Angstrom
 
-base_path = './outputs/Cu2AC4/512/'
-scale_factor = 1.5 # 4.0
+base_path = 'C:/Users/vojac/OneDrive/Dokumenty/PSI-vojac/Cu_acetate/density_projections_in_energy_windows/7.3eV/kpoints2x2x2/' #./outputs/Cu2AC4/512/'
+scale_factor = 1.0 # 4.0
 
 R1 = np.array((4.85991, 5.28091, 3.56158)) # np.array(list(self.metadata['atoms'][R_idx1][1])[1:])*physical_constants['Bohr radius'][0]*1e10
 R2 = np.array((3.01571, 6.45289, 4.99992)) #np.array(list(self.metadata['atoms'][R_idx2][1])[1:])*physical_constants['Bohr radius'][0]*1e10
@@ -671,6 +672,14 @@ _sq = (x**2 + y**2 + z**2)
                                     C    *  dsphere(x, y, z, sigma=sigma, center=center, theta0=theta0, phi0=phi0, Z_eff=Z_eff_s)
             return amplitude * orbital
         models['dx2y2_neat_with_dsphere'] = dx2y2_neat_with_dsphere
+        
+        def d_from_coeffs(x, y, z, sigma=None, center=(3,3,3), amplitude=None, theta0=None, phi0=None, Z_eff=None, Z_eff_s=None, C=None):
+            
+            coeffs = [-0.622, 0.355, -0.329, -0.241, 0.566]
+            
+            psi = make_wavefunction_from_coeffs(coeffs=coeffs, center=center)
+            return psi(x, y, z)
+        models['d_from_coeffs'] = d_from_coeffs
 
         # check plot
         # x = np.linspace(-1, 1, 101)
@@ -1124,8 +1133,8 @@ _sq = (x**2 + y**2 + z**2)
 
         if output_folder is None:
             output_folder = self.output_folder
-        fout_name = os.path.join(output_folder, fout_name)
-
+        fout_name = output_folder + '/' + fout_name
+        
         # 2D grid with correct units but no dimensionality
         i_vals = (np.arange(self.nka)-self.nka//2) / self.nka
         j_vals = (np.arange(self.nkb)-self.nkb//2) / self.nkb
@@ -1272,6 +1281,7 @@ _sq = (x**2 + y**2 + z**2)
                     ylabel=None,
                     title=None,
                     plot_rec_latt_vectors=True,
+                    save_2D_map_data=False,
                     ):
         """Plot the 2D FFT of the scalar field.
 
@@ -1386,7 +1396,6 @@ _sq = (x**2 + y**2 + z**2)
             else:
                 plt.clim(zlims[0], zlims[1])
 
-
         # Overlay grid points
         # plt.scatter(X, Y, color='black', s=1)
 
@@ -1412,6 +1421,8 @@ _sq = (x**2 + y**2 + z**2)
                 if kx_arr_along is not None and ky_arr_along is not None:
                     ax.arrow(kx_arr_along[0], ky_arr_along[0], kx_arr_along[-1]-kx_arr_along[0], ky_arr_along[-1]-ky_arr_along[0], 
                                 head_width=None, head_length=None, fc=linecolor_along, ec=linecolor_along, linestyle=':', linewidth=2.0, color=linecolor_along)
+                    print('KX_ARR_ALONG', kx_arr_along)
+                    print('KY_ARR_ALONG', ky_arr_along)
                     # dkx = kx_arr_along[len(kx_arr_along)//2]
                     # dky = ky_arr_along[len(ky_arr_along)//2]
                     # for n in range(-10, 10):
@@ -1422,10 +1433,14 @@ _sq = (x**2 + y**2 + z**2)
                     ax.arrow(kx_arr_perp[0], ky_arr_perp[0], kx_arr_perp[-1]-kx_arr_perp[0], ky_arr_perp[-1]-ky_arr_perp[0], 
                              head_width=None, head_length=None, fc=linecolor_perp, ec=linecolor_perp, linestyle=':', linewidth=2.0, color=linecolor_perp)
                     ax.arrow(-kx_arr_along[len(kx_arr_along)//2], -ky_arr_along[len(ky_arr_along)//2], kx_arr_along[len(kx_arr_along)//2], ky_arr_along[len(ky_arr_along)//2], head_width=None, head_length=None, fc='k', ec='k', linestyle='-', linewidth=1.0, color=linecolor_perp)
+                print('KX_ARR_PERP', kx_arr_perp)
+                print('KY_ARR_PERP', ky_arr_perp)
+            
             if cut_along == 'along_opposite_stripes':
                 if kx_arr_along is not None and ky_arr_along is not None:
                     ax.arrow(kx_arr_along_opposite[0], ky_arr_along_opposite[0], kx_arr_along_opposite[-1]-kx_arr_along_opposite[0], ky_arr_along_opposite[-1]-ky_arr_along_opposite[0], 
                              head_width=None, head_length=None, fc=linecolor_along_opposite, ec=linecolor_along_opposite, linestyle=':', linewidth=2.0, color=linecolor_along_opposite)
+                
         # Formatting
         if xlabel is None:
             xlabel = r"$k_x$ ($\mathrm{\AA}^{-1}$)"
@@ -1456,6 +1471,15 @@ _sq = (x**2 + y**2 + z**2)
             fsplit = fout_name.split('.')
             fout_name = '.'.join(fsplit[:-1]) + '_fix-scale.' + fsplit[-1]
         plt.savefig(windows_long_path(fout_name), dpi=dpi)
+
+        if save_2D_map_data is True:
+            import pickle
+            data_to_save = {}
+            data_to_save['data'] = np.abs(F_abs_sq_cut)
+            data_to_save['kx'] = X
+            data_to_save['ky'] = Y
+            with open(f'2D_map_data_kz{self.get_kz_at_index(i_kz):.4f}.pickle', 'wb') as fw:
+                pickle.dump(data_to_save, fw)
 
         if show_plot:
             plt.show()
@@ -1809,7 +1833,7 @@ def workflow(output_folder, site_idx, site_radii, replace_DFT_by_model, paramete
     """
     # --- INPUT ----
 
-    fname_cube_file = './cube_files/Cu2AC4_rho_sz_512.cube' #'./cube_files/Mn2GeO4_rho_sz.cube'
+    fname_cube_file = f'{base_path}Cu2AC4_rho_sz_0.0eV_to_1.5eV.cube' #'./cube_files/Mn2GeO4_rho_sz.cube'
     
     permutation = None #!! for Mn2GeO4 need to use [2,1,0] to swap x,y,z -> z,y,x
 
@@ -1818,12 +1842,12 @@ def workflow(output_folder, site_idx, site_radii, replace_DFT_by_model, paramete
     density_3D = False
     density_slices = False
     
-    fft_3D = False
+    fft_3D = True
     full_range_fft_spectrum_cuts = False
-    zoom_in_fft_spectrum_cuts = False
-    fft_cut_planes_oblique = True
+    zoom_in_fft_spectrum_cuts = True
+    fft_cut_planes_oblique = False
 
-    write_cube_files = False
+    write_cube_files = True
 
     # ---- PARAMETERS -----
 
@@ -1965,27 +1989,38 @@ def workflow(output_folder, site_idx, site_radii, replace_DFT_by_model, paramete
                                 ylims=fft_ylims, 
                                 zlims=fft_zlims)
             
-            # for the middle i_kz, plot also line cuts
-            if i_kz == density.nkc//2:
-                # along stripes
-                for cut_along in ['along_stripes', 'perpendicular_to_stripes', 'both', 'along_opposite_stripes']:
-                    kx_arr_along, ky_arr_along, F_abs_sq_interp_along, kx_arr_perp, ky_arr_perp, F_abs_sq_interp_perp, kx_arr_along_opposite, ky_arr_along_opposite, F_abs_sq_interp_along_opposite = density.plot_fft_along_line(i_kz=i_kz, cut_along=cut_along, kx_ky_fun=None, k_dist_lim=12, N_points=3001, fout_name=f'{output_folder}/cut_1D_{cut_along}.png', cax_saturation=cax_saturation,)
-                    density.plot_fft_2D(i_kz=i_kz, fft_as_log=fft_as_log, 
-                                fout_name=f'F_abs_sq{appendix}-scale_kz_at_idx_{i_kz}_cut_{cut_along}.png', 
-                                figsize=(5.5, 4.5),
-                                dpi=fft_dpi,
-                                fixed_z_scale=True,
-                                cax_saturation=cax_saturation,
-                                xlims=fft_xlims,
-                                ylims=fft_ylims, 
-                                zlims=fft_zlims,
-                                plot_line_cut=True, 
-                                kx_arr_along=kx_arr_along, ky_arr_along=ky_arr_along,
-                                kx_arr_perp=kx_arr_perp, ky_arr_perp=ky_arr_perp,
-                                kx_arr_along_opposite=kx_arr_along_opposite, ky_arr_along_opposite=ky_arr_along_opposite,
-                                cut_along=cut_along)
-                    np.savetxt(os.path.join(density.output_folder, 'cut_1D_both.txt'), np.array([kx_arr_along, ky_arr_along, F_abs_sq_interp_along, kx_arr_perp, ky_arr_perp, F_abs_sq_interp_perp, kx_arr_along_opposite, ky_arr_along_opposite, F_abs_sq_interp_along_opposite]).T, delimiter='\t', fmt='%.8e', header='kx_along\tky_along\tF_abs_sq_along\tkx_perp\tky_perp\tF_abs_sq_perp\tkx_along_opposite\tky_along_opposite\tF_abs_sq_along_opposite')
-
+            # along stripes
+            for cut_along in ['along_stripes', 'perpendicular_to_stripes', 'both', 'along_opposite_stripes']:
+                kx_arr_along, ky_arr_along, F_abs_sq_interp_along, kx_arr_perp, ky_arr_perp, F_abs_sq_interp_perp, kx_arr_along_opposite, ky_arr_along_opposite, F_abs_sq_interp_along_opposite = density.plot_fft_along_line(i_kz=i_kz, cut_along=cut_along, kx_ky_fun=None, k_dist_lim=12, N_points=3001, fout_name=f'{output_folder}/cut_1D_{cut_along}.png', cax_saturation=cax_saturation,)
+                density.plot_fft_2D(i_kz=i_kz, fft_as_log=fft_as_log, 
+                            fout_name=f'F_abs_sq{appendix}-scale_kz_at_idx_{i_kz}_cut_{cut_along}.png', 
+                            figsize=(5.5, 4.5),
+                            dpi=fft_dpi,
+                            fixed_z_scale=True,
+                            cax_saturation=cax_saturation,
+                            xlims=fft_xlims,
+                            ylims=fft_ylims, 
+                            zlims=fft_zlims,
+                            plot_line_cut=True, 
+                            kx_arr_along=kx_arr_along, ky_arr_along=ky_arr_along,
+                            kx_arr_perp=kx_arr_perp, ky_arr_perp=ky_arr_perp,
+                            kx_arr_along_opposite=kx_arr_along_opposite, ky_arr_along_opposite=ky_arr_along_opposite,
+                            cut_along=cut_along)
+                np.savetxt(os.path.join(density.output_folder, 'cut_1D_both.txt'), np.array([kx_arr_along, ky_arr_along, F_abs_sq_interp_along, kx_arr_perp, ky_arr_perp, F_abs_sq_interp_perp, kx_arr_along_opposite, ky_arr_along_opposite, F_abs_sq_interp_along_opposite]).T, delimiter='\t', fmt='%.8e', header='kx_along\tky_along\tF_abs_sq_along\tkx_perp\tky_perp\tF_abs_sq_perp\tkx_along_opposite\tky_along_opposite\tF_abs_sq_along_opposite')
+        
+        # for the middle i_kz, plot also line cuts
+        i_kz = density.nkc//2
+        density.plot_fft_2D(i_kz=i_kz, fft_as_log=fft_as_log, 
+                    fout_name=f'F_abs_sq{appendix}-scale_kz_at_idx_{i_kz}.png', 
+                    figsize=(5.5, 4.5),
+                    dpi=fft_dpi,
+                    fixed_z_scale=True,
+                    cax_saturation=cax_saturation,
+                    xlims=fft_xlims,
+                    ylims=fft_ylims, 
+                    zlims=fft_zlims,
+                    save_2D_map_data=True)
+        
     def fft_perform_cut_planes_oblique(u_axis, v_axis, center=(0.0, 0.0, 0.0), seedname_perp_cut='perp_to_axis'):
 
         # create the interpolator
@@ -2419,6 +2454,7 @@ site_idx_all = [
     [0, 25, 40, 9, 16, 1, 41, 24, 17, 8], #31
     [0, 25, 40, 9, 16], #32
     [0, 25, 40, 9, 16], #33
+    [0], #34
 ]
 
 site_radii_all = [
@@ -2456,6 +2492,7 @@ site_radii_all = [
     [r_mt_Cu]+[r_mt_O]*4+[r_mt_Cu]+[r_mt_O]*4, #31
     [r_mt_Cu]+[r_mt_O]*4, #32
     [r_mt_Cu]+[r_mt_O]*4, #33
+    [r_mt_Cu], #34
 ]
 
 
@@ -2494,6 +2531,7 @@ output_folders_all = [
     base_path+'masked_model_Cu0-1_and_oxygens_purely_bonding_spx_correct', #31
     base_path+'masked_model_Cu0_and_oxygens_dx2y2_dz2', #32
     base_path+'masked_model_Cu0_and_oxygens_dx2y2_dsphere', #33
+    base_path+'masked_model_Cu0_d_from_occ_matrix_coeffs', #34
 ]
 
 replace_DFT_by_model_all = [
@@ -2531,6 +2569,7 @@ replace_DFT_by_model_all = [
     True, #31
     True, #32
     True, #33
+    True, #34
 ]
 
 fit_model_to_DFT_all = [
@@ -2568,6 +2607,7 @@ fit_model_to_DFT_all = [
     False, #31
     False, #32
     False, #33
+    False, #34
 ]
 
 parameters_model_all = [{}]*7 + [
@@ -2607,8 +2647,6 @@ parameters_model_all = [{}]*7 + [
                                                                             'phi0':[-0.58594, -0.5933, 2.55285232, 0.829267292, -2.0329591, -0.58594, -0.5933, 2.55285232, 0.829267292, -2.0329591,], 
                                                                             'Z_eff':[12.2132868, 8.5545368, 8.5995384, 8.53154405, 8.57672478, 12.2132868, 8.5545368, 8.5995384, 8.53154405, 8.57672478],
                                                                             'C':[0.000, 0.50774442, 0.46376494, 0.543582469, 0.50554664, 0.000, 0.50774442, 0.46376494, 0.543582469, 0.50554664]}}, #23 <-------- both Cu0 and Cu1 populated with model 22 (Cu1 with spin down - controlled by 'spin_down_orbital_all' key in parameters_model)
-    
-    
     {'type':['two_spx_correct'], 'sigmas':[0.3], 'centers':[], 'fit_params_init_all':{'amplitude':[-0.2926634], 'theta0':[-0.82051673], 'phi0':[-0.5980457], 'Z_eff':[5.01517706], 'C':[0.25951331]}}, #24 (atom 25) - like 15 but correct orbitals <-------- Oxygen 1/4,         --->  R^2 0.853924
     {'type':['two_spx_correct'], 'sigmas':[0.3], 'centers':[], 'fit_params_init_all':{'amplitude':[-0.30968292], 'theta0':[1.18435744], 'phi0':[2.55194631], 'Z_eff':[4.94533815], 'C':[0.22725085]}}, #25 (atom 40) - like 16 but correct orbitals <-------- Oxygen 2/4  --->  R^2 0.865949
     {'type':['two_spx_correct'], 'sigmas':[0.3], 'centers':[], 'fit_params_init_all':{'amplitude':[0.295919999], 'theta0':[0.00034809], 'phi0':[0.8265912], 'Z_eff':[5.10058135], 'C':[0.291142454]}}, #26 (atom 9) - like 17 but correct orbitals <-------- Oxygen 3/4   --->  R^2 0.842962
@@ -2649,6 +2687,13 @@ parameters_model_all = [{}]*7 + [
                                                                             'Z_eff':[12.8481725, 5.01517706, 4.94533815, 5.10058135, 5.04343411],
                                                                             'Z_eff_s':[12.8481725, None, None, None, None],
                                                                             'C':[1.00, 0.25951331, 0.22725085, 0.291142454, 0.28161311]}}, # 33 Copper (dx2y2-ds) + 4 Oxygens              
+        # d orbitals from occupation matrix coefficients
+        {'type':['d_from_coeffs'], 'sigmas':[None], 'centers':[], 'fit_params_init_all':{'amplitude':[None], 
+                                                                        'theta0':[None], 
+                                                                        'phi0':[None], 
+                                                                        'Z_eff':[None],
+                                                                        'Z_eff_s':[None],
+                                                                        'C':[None]}}, # 34 Copper d orbital from occupation matrix coefficients
     ]
 
 
@@ -3082,7 +3127,7 @@ def workflow_exchange_integrals(rho1, rho2):
 if __name__ == '__main__':
 
     # ------ WANNNIER -----
-    spins=['up', 'down'] # for Cu0 the wannierized orbital (unoccupied - hole) is spin down so the occuped net density is spin up  
+    spins=['up', 'down'] # for Cu0 the wannierized orbital (unoccupied - hole) is spin down so the occupied net density is spin up  
     base_folders = ['/home/vojace_l/Documents/Cu(II)_acetate/from_daint_alps/Wannierization/singlet_spin_polarized/nscf_kpoints2x2x2/case_07_unoccupied_above_Fermi_Cu0_so_spin-down_1000_1000', \
                     '/home/vojace_l/Documents/Cu(II)_acetate/from_daint_alps/Wannierization/singlet_spin_polarized/nscf_kpoints2x2x2/case_08_unoccupied_above_Fermi_Cu1_so_spin-up_1000_1000']
     common_folder = '/home/vojace_l/Documents/Cu(II)_acetate/from_daint_alps/Wannierization/singlet_spin_polarized/nscf_kpoints2x2x2/joint_case_07_case_08'
@@ -3100,14 +3145,15 @@ if __name__ == '__main__':
     # ===== RUN a single case =====
     run_a_single_case = False
     if run_a_single_case:
-        output_folder = './outputs/Cu2AC4/512/masked_Cu0_and_oxygens' #_and_oxygens' # 'Mn2GeO4_kz_tomography_64' #'./gaussian/sigma_0.3_distance_1.0' # Mn2GeO4_kz_tomography_64
-        site_idx = [0, 16, 25, 9, 40] #, 1] # 16, 25, 9, 40, 1, 41, 8, 24, 17] #  16, 25, 9, 40] #[0]# None #[0,  16, 25, 9, 40, 1, 41, 8, 24, 17] #[1, 41, 8, 24, 17, 0,  16, 25, 9, 40] #[0] #, 16, 25, 9, 40]  # [0] #,  16, 25, 9, 40] #
-        site_radii = [r_mt_Cu] + 4*[r_mt_O] #+ [r_mt_Cu]+ 4*[r_mt_O]
-        workflow(site_idx=site_idx, site_radii=site_radii, output_folder=output_folder)
+        output_folder = './' #'./outputs/Cu2AC4/512/masked_Cu0_and_oxygens' #_and_oxygens' # 'Mn2GeO4_kz_tomography_64' #'./gaussian/sigma_0.3_distance_1.0' # Mn2GeO4_kz_tomography_64
+        site_idx = [0, 25, 40, 9, 16, 1, 41, 24, 17, 8] #[0, 16, 25, 9, 40] #, 1] # 16, 25, 9, 40, 1, 41, 8, 24, 17] #  16, 25, 9, 40] #[0]# None #[0,  16, 25, 9, 40, 1, 41, 8, 24, 17] #[1, 41, 8, 24, 17, 0,  16, 25, 9, 40] #[0] #, 16, 25, 9, 40]  # [0] #,  16, 25, 9, 40] #
+        site_radii = [r_mt_Cu] + 4*[r_mt_O] + [r_mt_Cu]+ 4*[r_mt_O]
+        workflow(output_folder=output_folder, site_idx=site_idx, site_radii=site_radii, replace_DFT_by_model=False, parameters_model=parameters_model_all[29], fit_model_to_DFT=False)
+        exit()
 
     # ===== RUN selected cases among the predefined ones =====
 
-    run_cases = [5] #[33] #None #[5] #[0, 3, 5, 23] #, 3, 5, 23] #, 3, 5] # None
+    run_cases = [34] #[33] #None #[5] #[0, 3, 5, 23] #, 3, 5, 23] #, 3, 5] # None
 
     # case = 29
     # scale_R_array = [1.0] #[1.00]
